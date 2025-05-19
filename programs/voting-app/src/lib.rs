@@ -38,10 +38,10 @@ pub mod voting_app {
 #[instruction(poll_id:u64,candidate_name:String)]
 pub struct InitializePoll<'info> {
     #[account(mut)]
-    pub singer: Signer<'info>,
+    pub signer: Signer<'info>,
     #[account(
         init,
-        payer = singer,
+        payer = signer,
         seeds = [poll_id.to_le_bytes().as_ref()],
         space = 8 + Poll::INIT_SPACE,
         bump,
