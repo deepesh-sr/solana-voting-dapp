@@ -10,26 +10,25 @@ describe("voting-app", () => {
   const program = anchor.workspace.VotingApp as Program<VotingApp>;
 
   it("Initializes a poll", async () => {
-    // Generate a new Keypair for the poll account
-    const poll = anchor.web3.Keypair.generate();
     const pollId = new anchor.BN(1);
     const description = "Best programming language?";
     const pollStart = new anchor.BN(Date.now() / 1000);
     const pollEnd = new anchor.BN(Date.now() / 1000 + 86400); // +1 day
 
     // Derive the PDA for the poll account
-    const [pollPDA, _] = await anchor.web3.PublicKey.findProgramAddress(
+    const [pollPDA,] = await anchor.web3.PublicKey.findProgramAddress(
       [pollId.toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-    // Call the initialize_poll instruction
+    // Call the initializepoll instruction
     await program.methods
       .initializePoll(pollId, description, pollStart, pollEnd)
-      .accounts({
+      .accountsStrict({
         signer: provider.wallet.publicKey,
+        poll: pollPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
       })
-      .signers([])
       .rpc();
 
     // Fetch the poll account and assert its fields
@@ -41,4 +40,33 @@ describe("voting-app", () => {
     assert.equal(pollAccount.candidateAmount.toNumber(), 0);
   });
 
+  it("Initialize Candidate", async() =>{
+    const pollId = new anchor.BN(1);
+    const candidate_name = "Rust";
+
+    const [candidatePDA,] = await anchor.web3.PublicKey.findProgramAddress(
+      [pollId.toArrayLike(Buffer, "le", 8),Buffer.from(candidate_name)],
+      program.programId
+    )
+    // Derive the PDA for the poll account
+    const [pollPDA,] = await anchor.web3.PublicKey.findProgramAddress(
+      [pollId.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    )
+
+    //call the initialize candidate instruction
+    await program.methods
+      .initializeCandidate(pollId,candidate_name)
+      .accountsStrict({
+        signer: provider.wallet.publicKey,
+        poll : pollPDA,
+        candidateAccount : candidatePDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      }).rpc();
+
+      // Fetch the candidate account and assert its fields
+      const candidateAccount = await program.account.candidate.fetch(candidatePDA);
+      assert.equal(candidateAccount.candidateName, candidate_name);
+      assert.equal(candidateAccount.candidateVote.toNumber(), 0);
+  })
 });
