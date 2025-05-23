@@ -12,8 +12,8 @@ describe("voting-app", () => {
   it("Initializes a poll", async () => {
     const pollId = new anchor.BN(1);
     const description = "Best programming language?";
-    const pollStart = new anchor.BN(Date.now() / 1000);
-    const pollEnd = new anchor.BN(Date.now() / 1000 + 86400); // +1 day
+    const pollStart = new anchor.BN(Math.floor(Date.now() / 1000));
+    const pollEnd = new anchor.BN(Math.floor(Date.now() / 1000) + 86400); // +1 day
 
     // Derive the PDA for the poll account
     const [pollPDA,] = await anchor.web3.PublicKey.findProgramAddress(
@@ -68,5 +68,34 @@ describe("voting-app", () => {
       const candidateAccount = await program.account.candidate.fetch(candidatePDA);
       assert.equal(candidateAccount.candidateName, candidate_name);
       assert.equal(candidateAccount.candidateVote.toNumber(), 0);
+  })
+
+  it("Vote", async()=>{
+    const pollId = new anchor.BN(1);
+    const candidate_name = "Rust";
+
+    const [cadidatePDA,] = await anchor.web3.PublicKey.findProgramAddress(
+      [pollId.toArrayLike(Buffer, "le", 8),Buffer.from(candidate_name)],
+      program.programId
+    )
+
+    const [pollPDA,] = await anchor.web3.PublicKey.findProgramAddress(
+      [pollId.toArrayLike(Buffer, "le", 8)],
+      program.programId)
+
+    //call the vote instruction
+    await program.methods.vote(pollId, candidate_name)
+    .accountsStrict({
+      signer: provider.wallet.publicKey,
+      poll : pollPDA,
+      candidateAccount : cadidatePDA,
+      systemProgram : anchor.web3.SystemProgram.programId 
+    })
+    .rpc();
+
+      // Fecting the candidate account and assert its fields
+      const candidateAccount = await program.account.candidate.fetch(cadidatePDA);
+      assert.equal(candidateAccount.candidateName, candidate_name);
+      assert.equal(candidateAccount.candidateVote.toNumber(), 1);
   })
 });
