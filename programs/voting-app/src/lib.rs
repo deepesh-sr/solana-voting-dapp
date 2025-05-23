@@ -24,10 +24,13 @@ pub mod voting_app {
 
     pub fn initialize_candidate(
         ctx: Context<InitializeCandidate>,
+        _poll_id : u64,
         candidate_name : String ,
-        _poll_id : u64
     )->Result<()>{
-        ctx.accounts.candidate_account.candidate_name = candidate_name;
+        ctx.accounts.candidate_account.set_inner(Candidate{
+            candidate_name,
+            candidate_vote : 0
+        });
         ctx.accounts.poll.candidate_amount+=1;
         Ok(())
     }
@@ -56,14 +59,19 @@ pub struct InitializePoll<'info> {
 pub struct InitializeCandidate<'info>{
     #[account(mut)]
     pub signer :Signer<'info>,
-    pub poll : Account<'info,Poll>,
     #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub poll : Account<'info,Poll>,
+   #[account(
         init,
         payer = signer,
         seeds = [poll_id.to_le_bytes().as_ref(),candidate_name.as_ref()],
         space = 8 + Candidate::INIT_SPACE,
         bump,
-    )]
+    )] 
     pub candidate_account : Account<'info ,Candidate>,
     pub system_program : Program<'info,System>
 }
@@ -72,7 +80,7 @@ pub struct InitializeCandidate<'info>{
 #[derive(InitSpace)]
 pub struct Poll {
     poll_id: u64,
-    #[max_len(50)]
+    #[max_len(32)]
     description: String,
     poll_start: u64,
     poll_end: u64,
@@ -82,8 +90,7 @@ pub struct Poll {
 #[account]
 #[derive(InitSpace)]
 pub struct Candidate {
-    #[max_len(65)]
+    #[max_len(16)]
     candidate_name: String,
-    #[max_len(65)]
     candidate_vote: u64,
 }
